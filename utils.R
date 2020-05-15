@@ -1,17 +1,30 @@
-d <- function(I, p) {
-    # Returns the I-th sign vector of size p.
-    (-1)^as.numeric(intToBits(I))[1:p]
+# Function to generate the sign vectors of length p.
+# If I is 0 we return a matrix with all ds in columns.
+d <- function(p, I = 0) {
+    if (I == 0) {
+        (-1)^matrix(as.numeric(intToBits(1:2^p - 1)), nrow = 32)[1:p,]
+    } else {
+        (-1)^as.numeric(intToBits(I-1))[1:p]
+    }
 }
 
+# Curries the parameter p into the d function.
 d.factory <- function(p) {
-    # Returns a function that can generate the sign vectors of size p.
-    d.curried <- function(I) { d(I, p) }
+    d.curried <- function(I) { d(p, I) }
     d.curried
 }
 
+# Implements the vectorized sign function so that |v|_i = v_i * sign(v)_i.
 sgn <- function(vector) {
-    # Implements the sign(v) function for a vector v.
     sign(0.5 + sign(vector))
+}
+
+# Function that builds a diagonal matrix out of an input vector v or an input matrix M.
+## If the input is a vector, creates a diagonal matrix with v as main diagonal.
+## If the input is a matrix, creates a diagonal matrix with the same diagonal as M.
+diag.matrix <- function(vM) {
+    if (is.matrix(vM)) vM <- diag(vM)
+    diag(vM)
 }
 
 gram.schmidt <- function(vector.matrix) {
