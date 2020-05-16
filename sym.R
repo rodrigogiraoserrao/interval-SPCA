@@ -44,7 +44,7 @@ var.k <- function(C, R, k = 1) {
 cov.k <- function(C, R, k = 1) {
     .is.legal.k(k)
     sigma.cc <- cov(C)
-    e.rr <- t(R)%*%R/nrow(R)
+    e.rr <- (t(R)%*%R)/nrow(R)
     delta <- delta.k(k)
     
     if (is.full.k(k)) sigma.cc + delta*e.rr
