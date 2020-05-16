@@ -27,16 +27,12 @@ diag.matrix <- function(vM) {
     diag(vM)
 }
 
+# Implements the modified Gram-Schmidt orthogonalization process (the modified alorithm introduces less floating-point errors).
+# The input vectors must be the columns of the input matrix.
 gram.schmidt <- function(vector.matrix) {
-    # Implements the Gram-Schmidt orthogonalization process over the columns of vector.matrix.
     result <- matrix(normalize(vector.matrix[,1]), ncol=1)
     for (i in 2:ncol(vector.matrix)) {
-        print("The result is")
-        print(result)
-        # Use the modified Gram-Schmidt process to reduce floating-point inaccuracies
         v <- vector.matrix[,i]
-        print("v is")
-        print(v)
         for (k in 1:ncol(result)) {
             v <- v - (v%*%result[,k])[1,1]*result[,k]
         }
