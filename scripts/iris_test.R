@@ -18,9 +18,9 @@ conv <- c(1, 3)
 pc <- c(1, 3)
 
 ## Set symbolic variables here
-K <- 2                       # the symbolic model to be used.
+K <- 5                       # the symbolic model to be used.
 algebra <- "vector space"    # the interval algebra to be used.
-restriction <- "orthogonal"  # the type of restriction to enforce.
+restriction <- "uncorrelated"  # the type of restriction to enforce.
 
 # Helper function to set the axis of the plots
 stretch.axis <- function(axis) {
@@ -65,7 +65,7 @@ for (i in 1:n_groups) {
 }
 
 # Prepare plotting area
-par(mfrow=c(2,3))
+par(mfrow = c(2,3))
 
 # Find the 2 columns with greatest variance and plot their intervals.
 sigma.k <- cov.k(C, R, K)
@@ -139,6 +139,7 @@ rect(
 result <- sym.pca(C, R, K, interval.algebra = "vector space", restriction = "orthogonal")
 newC <- C %*% result$vectors
 newR <- R %*% result$vectors
+newVars <- var.k(newC, newR, K)
 absR <- abs(newR)
 # Plot the rectangles for the PCs in pc
 xaxis <- stretch.axis(c(
@@ -153,7 +154,7 @@ plot(
     xaxis,
     yaxis,
     xlab = "pc[1]",
-    ylab = "pc[2]nd PC",
+    ylab = "pc[2]",
     main = paste("Intervals for PCs", pc[1], "and", pc[2]),
 )
 rect(
