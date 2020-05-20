@@ -27,20 +27,6 @@ diag.matrix <- function(vM) {
     diag(vM)
 }
 
-# Implements the modified Gram-Schmidt orthogonalization process (the modified alorithm introduces less floating-point errors).
-# The input vectors must be the columns of the input matrix.
-gram.schmidt <- function(vector.matrix) {
-    result <- matrix(normalize(vector.matrix[,1]), ncol=1)
-    for (i in 2:ncol(vector.matrix)) {
-        v <- vector.matrix[,i]
-        for (k in 1:ncol(result)) {
-            v <- v - (v%*%result[,k])[1,1]*result[,k]
-        }
-        result <- cbind(result, normalize(v))
-    }
-    result
-}
-
 normalize <- function(v) {
     # Normalize a vector to norm 1. If the vector has a norm very close to 0 return the 0 vector.
     norm <- sqrt(v%*%v)[1,1]
@@ -49,4 +35,27 @@ normalize <- function(v) {
     } else {
         0*v
     }
+}
+
+# Implements the modified Gram-Schmidt orthogonalization process (the modified alorithm introduces less floating-point errors).
+# The input vectors must be the columns of the input matrix.
+gram.schmidt <- function(vector.matrix) {
+    result <- matrix(normalize(vector.matrix[,1]), ncol = ncol(vector.matrix), nrow = nrow(vector.matrix))
+    for (i in 2:ncol(vector.matrix)) {
+        v <- vector.matrix[,i]
+        for (k in 1:ncol(result)) {
+            v <- v - (v%*%result[,k])[1,1]*result[,k]
+        }
+        result[, i] <- normalize(v)
+    }
+    result
+}
+
+# Returns a matrix P such that Pv is orthogonal to any of the column vectors of the input matrix.
+orthogonal.projection.matrix <- function(vector.matrix) {
+    result <- diag(nrow(vector.matrix))
+    for (i in 1:ncol(vector.matrix)) {
+        result <- result - vector.matrix[, i]%*%t(vector.matrix[, i])
+    }
+    result
 }
