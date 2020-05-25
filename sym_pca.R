@@ -31,31 +31,56 @@ sym.pca <- function(C, R, k,
         k = k
     )
     
-    if (interval.algebra == "vector space") {
-        
-        sigma.k <- cov.k(C, R, k)
-        partial.result <- eigen(sigma.k, symmetric = TRUE)
-        result$values <- partial.result$values
-        result$vectors <- partial.result$vectors
-        
-        if (restriction == "orthogonal" || (restriction == "uncorrelated" && is.full.k(k))) {
-            return(result)
-            
-        } else if (restriction == "uncorrelated" && is.diagonal.k(k)) {
-            sigma.cc <- cov(C)
-            for (i in 2:p) {
-                # Build the projection matrix out of the previous PCs
-                orthogonalized <- gram.schmidt(result$vectors[, 1:(i-1)])
-                projection.matrix <- orthogonal.projection.matrix(orthogonalized)
-                modified.sigma.k <- t(projection.matrix)%*%sigma.k%*%projection.matrix
-                partial.result <- eigen(modified.sigma.k)
-                result$values[i] <- partial.result$values[1]
-                result$vectors[, i] <- partial.result$vectors[, 1]
-            }
-            return(result)
-        }
-        
+    if (interval.algebra == "vector space" && restriction == "orthogonal") {
+        return(.sym.pca.conventional.case(result, cov.k(C, R, k)))
+    } else if (interval.algebra == "vector space" && restriction == "uncorrelated" && is.full.k(k)) {
+        return(.sym.pca.conventional.case(result, cov.k(C, R, k)))
+    } else if (interval.algebra == "vector space" && restriction == "uncorrelated" && is.diagonal.k(k)) {
+        return(.sym.pca.projection.case(
+            result,
+            conventional.matrix = cov.k(C, R, k),
+            orthogonality.matrix = cov(C)
+        ))
+    } else if (interval.algebra == "extended algebra" && restriction == "orthogonal") {
+        return(.sym.pca.conventional.case(result, cov.k(C, R, k)))
+    } else if (interval.algebra == "extended algebra" && restriction == "uncorrelated" && is.diagonal.k(k)) {
+        return(.sym.pca.projection.case(
+            result,
+            conventional.matrix = cov.k(C, R, k),
+            orthogonality.matrix = cov(C)
+        ))
     } else {
-        stop(paste("interval.algebra", interval.algebra, "not implemented yet."))
+        stop(paste(interval.algebra, restriction, k, "not implemented yet."))
     }
+}
+
+.sym.pca.conventional.case <- function(result, conventional.matrix) {
+    partial.result <- eigen(conventional.matrix, symmetric = TRUE)
+    result$vectors <- partial.result$vectors
+    result$values <- partial.result$values
+    return(result)
+}
+
+.sym.pca.projection.case <- function(result, conventional.matrix, orthogonality.matrix = diag(ncol(result$vectors))) {
+    
+    # For the first vector the orthogonality restrictions are empty.
+    partial.result <- eigen(conventional.matrix, symmetric = TRUE)
+    result$values[1] <- partial.result$values[1]
+    result$vectors[, 1] <- partial.result$vectors[, 1]
+    
+    # For each subsequent vector, find the projection matrix and solve the modified problem.
+    for (i in safe.colon(2, ncol(conventional.matrix))) {
+        # Build the orthogonal projection matrix.
+        modified.vectors <- orthogonality.matrix %*% result$vectors[, 1:(i-1)]
+        orthogonalized <- gram.schmidt(modified.vectors)
+        projection.matrix <- orthogonal.projection.matrix(orthogonalized)
+        # Modify the matrix inducing the quadratic form.
+        modified.conventional.matrix <- t(projection.matrix) %*% conventional.matrix %*% projection.matrix
+        # Find the largest eigenvalue (and corresp. eigenvector) and save it.
+        partial.result <- eigen(modified.conventional.matrix, symmetric = TRUE)
+        result$values[i] <- partial.result$values[1]
+        result$vectors[, i] <- partial.result$vectors[, 1]
+    }
+    
+    return(result)
 }

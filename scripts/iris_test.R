@@ -18,9 +18,9 @@ conv <- c(1, 3)
 pc <- c(1, 3)
 
 ## Set symbolic variables here
-K <- 5                       # the symbolic model to be used.
-algebra <- "vector space"    # the interval algebra to be used.
-restriction <- "uncorrelated"  # the type of restriction to enforce.
+K <- 5                         # the symbolic model to be used.
+algebra <- "extended algebra"      # the interval algebra to be used.
+restriction <- "orthogonal"  # the type of restriction to enforce.
 
 # Helper function to set the axis of the plots
 stretch.axis <- function(axis) {
@@ -70,6 +70,7 @@ par(mfrow = c(2,3))
 # Find the 2 columns with greatest variance and plot their intervals.
 sigma.k <- cov.k(C, R, K)
 vars.k <- diag(sigma.k)
+trace <- sum(vars.k)
 cols <- sort.int(vars.k, decreasing = TRUE, index.return = TRUE)$ix[conv]
 xaxis <- stretch.axis(c(
     min(C[, cols[1]]-R[, cols[1]]),
@@ -136,10 +137,13 @@ rect(
 
 ## Call the symbolic PCAs here.
 
-result <- sym.pca(C, R, K, interval.algebra = "vector space", restriction = "orthogonal")
+result <- sym.pca(C, R, K, interval.algebra = algebra, restriction = restriction)
 newC <- C %*% result$vectors
 newR <- R %*% result$vectors
 newVars <- var.k(newC, newR, K)
+newTrace <- sum(newVars)
+print(paste("abs(newTrace - trace) = ", abs(newTrace - trace)))
+print(round(100*cumsum(newVars)/newTrace, 2))
 absR <- abs(newR)
 # Plot the rectangles for the PCs in pc
 xaxis <- stretch.axis(c(

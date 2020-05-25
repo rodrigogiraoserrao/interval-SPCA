@@ -1,3 +1,9 @@
+# Implements a "safe" version of a:b that returns an empty vector when b < a.
+safe.colon <- function(from = 1, to = 1) {
+    if (to < from) c()
+    else from:to
+}
+
 # Function to generate the sign vectors of length p.
 # If I is 0 we return a matrix with all ds in columns.
 d <- function(p, I = 0) {
@@ -41,7 +47,7 @@ normalize <- function(v) {
 # The input vectors must be the columns of the input matrix.
 gram.schmidt <- function(vector.matrix) {
     result <- matrix(normalize(vector.matrix[,1]), ncol = ncol(vector.matrix), nrow = nrow(vector.matrix))
-    for (i in 2:ncol(vector.matrix)) {
+    for (i in safe.colon(2, ncol(vector.matrix))) {
         v <- vector.matrix[,i]
         for (k in 1:ncol(result)) {
             v <- v - (v%*%result[,k])[1,1]*result[,k]
@@ -54,7 +60,7 @@ gram.schmidt <- function(vector.matrix) {
 # Returns a matrix P such that Pv is orthogonal to any of the column vectors of the input matrix.
 orthogonal.projection.matrix <- function(vector.matrix) {
     result <- diag(nrow(vector.matrix))
-    for (i in 1:ncol(vector.matrix)) {
+    for (i in safe.colon(1, ncol(vector.matrix))) {
         result <- result - vector.matrix[, i]%*%t(vector.matrix[, i])
     }
     result
