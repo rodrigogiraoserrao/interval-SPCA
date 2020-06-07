@@ -18,9 +18,9 @@ conv <- c(1, 3)
 pc <- c(1, 3)
 
 ## Set symbolic variables here
-K <- 5                         # the symbolic model to be used.
-algebra <- "extended algebra"      # the interval algebra to be used.
-restriction <- "orthogonal"  # the type of restriction to enforce.
+K <- 2                         # the symbolic model to be used.
+algebra <- "moore algebra"      # the interval algebra to be used.
+restriction <- "uncorrelated"  # the type of restriction to enforce.
 
 # Helper function to set the axis of the plots
 stretch.axis <- function(axis) {
