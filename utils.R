@@ -46,10 +46,10 @@ normalize <- function(v) {
 # Implements the modified Gram-Schmidt orthogonalization process (the modified alorithm introduces less floating-point errors).
 # The input vectors must be the columns of the input matrix.
 gram.schmidt <- function(vector.matrix) {
-    result <- matrix(normalize(vector.matrix[,1]), ncol = ncol(vector.matrix), nrow = nrow(vector.matrix))
-    for (i in safe.colon(2, ncol(vector.matrix))) {
+    result <- matrix(0, ncol = ncol(vector.matrix), nrow = nrow(vector.matrix))
+    for (i in safe.colon(1, ncol(vector.matrix))) {
         v <- vector.matrix[,i]
-        for (k in 1:ncol(result)) {
+        for (k in safe.colon(1, i-1)) {
             v <- v - (v%*%result[,k])[1,1]*result[,k]
         }
         result[, i] <- normalize(v)
