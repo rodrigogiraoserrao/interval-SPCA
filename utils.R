@@ -29,7 +29,8 @@ sgn <- function(vector) {
 ## If the input is a vector, creates a diagonal matrix with v as main diagonal.
 ## If the input is a matrix, creates a diagonal matrix with the same diagonal as M.
 diag.matrix <- function(vM) {
-    if (is.matrix(vM)) vM <- diag(vM)
+    if (is.matrix(vM) && nrow(vM) > 1 && ncol(vM) > 1) vM <- diag(vM)
+    else if (is.matrix(vM) && (nrow(vM) == 1 || ncol(vM) == 1)) vM <- as.vector(vM)
     diag(vM)
 }
 
