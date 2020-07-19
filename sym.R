@@ -30,7 +30,7 @@ is.diagonal.k <- function(k) {
 
 # Retrieve the \delta_k constant relative to a symbolic model.
 delta.k <- function(k = 1) {
-    if (k > length(DELTAS) || k <= 0) stop(paste("k must be between 1 and", length(DELTAS)))
+    .is.legal.k(k)
     DELTAS[k]
 }
 
@@ -49,4 +49,16 @@ cov.k <- function(C, R, k = 1) {
     
     if (is.full.k(k)) sigma.cc + delta*e.rr
     else sigma.cc + delta*diag.matrix(e.rr)
+}
+
+# Normalize the symbolic variables to centre 0 and variance 1.
+normalize.k <- function(C, R, k = 1) {
+    .is.legal.k(k)
+    # recenter
+    mu.C <- colMeans(C)
+    C_ <- sweep(C, 2, mu.C, "-")
+    sd <- sqrt(var.k(C_, R, k))
+    C_ <- sweep(C_, 2, sd, "/")
+    R_ <- sweep(R, 2, sd, "/")
+    return(list(C=C_, R=R_))
 }
