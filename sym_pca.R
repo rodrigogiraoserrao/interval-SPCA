@@ -12,13 +12,20 @@ source("./sym.R")
 # Returns a list with $values and $vectors, much like the eigen() function.
 sym.pca <- function(C, R, k,
                     interval.algebra = c("vector space", "extended algebra", "moore algebra"),
-                    restriction = c("orthogonal", "uncorrelated")
+                    restriction = c("orthogonal", "uncorrelated"),
+                    normalize = FALSE
 ) {
     .is.legal.k(k)
     if (nrow(C) != nrow(R)) stop("C and R matrices have different numbers of rows.")
     if (ncol(C) != ncol(R)) stop("C and R matrices have different numbers of columns.")
     interval.algebra <- match.arg(interval.algebra)
     restriction <- match.arg(restriction)
+    
+    if (normalize) {
+        l <- normalize.k(C, R, k)
+        C <- l$C
+        R <- l$R
+    }
     
     p <- ncol(C)
     n <- nrow(C)
@@ -93,6 +100,7 @@ sym.pca <- function(C, R, k,
         # this instance is special-cased, solve directly
         sigma.cc <- cov(C)
         e.rr <- t(R)%*%R/nrow(R)
+        if (!all.equal(e.rr, abs(e.rr))) stop("E[RR^T] matrix should be non-negative.")
         Ms <- list()
         Ds <- list()
         d.matrix <- d(p)
@@ -100,33 +108,61 @@ sym.pca <- function(C, R, k,
             Ds[[s]] <- diag.matrix(d.matrix[, s])
             Ms[[s]] <- sigma.cc + delta.k(k) * Ds[[s]]%*%e.rr%*%Ds[[s]]
         }
-        
-        lambda.s <- rep(0, 2^p)
-        alpha.s <- matrix(0, nrow = p, ncol = ncol(d.matrix))
         for (i in safe.colon(1, p)) {
+            lambda.s <- rep(0, 2^p)
+            alpha.s <- matrix(0, nrow = p, ncol = ncol(d.matrix))
+            same.s <- rep(FALSE, 2^p)
             prev.vectors <- result$vectors[, safe.colon(1, i-1)]
             for (s in safe.colon(1, length(Ds))) {
                 modified.vectors <- sigma.cc%*%prev.vectors + delta.k(k)*Ds[[s]]%*%e.rr%*%abs(prev.vectors)
                 orthogonalized <- gram.schmidt(modified.vectors)
+                if (!isTRUE(all.equal(
+                    diag(ncol(modified.vectors)),
+                    t(orthogonalized)%*%orthogonalized
+                ))) stop("Gram-Scmidt failed.")
                 projection.matrix <- orthogonal.projection.matrix(orthogonalized)
                 quadratic.matrix <- t(projection.matrix)%*%Ms[[s]]%*%projection.matrix
                 partial.result <- eigen(quadratic.matrix, symmetric = TRUE)
                 lambda.s[s] <- partial.result$values[1]
-                alpha.s[, s] <- partial.result$vectors[, 1]
+                eig <- t(t(partial.result$vectors[, 1]))
+                alpha.s[, s] <- eig
+                same.s[s] <- isTRUE(all.equal(
+                    t(eig)%*%sigma.cc%*%eig + delta.k(k)*t(eig)%*%Ds[[s]]%*%e.rr%*%Ds[[s]]%*%eig,
+                    t(eig)%*%sigma.cc%*%eig + delta.k(k)*  abs(t(eig))   %*%e.rr%*%  abs(eig)
+                ))
+                if (!isTRUE(all.equal(eig, projection.matrix%*%eig))) stop("Projection failed.")
+                if (!isTRUE(all.equal(
+                    rep(0, i-1),
+                    as.vector(t(eig)%*%(sigma.cc%*%prev.vectors + delta.k(k)*Ds[[s]]%*%e.rr%*%abs(prev.vectors)))
+                ))) stop("Eigenvector isn't uncorrelated")
+                # print(isTRUE(all.equal(
+                #     t(eig)%*%sigma.cc%*%prev.vectors + delta.k(k)*t(eig)%*%Ds[[s]]%*%e.rr%*%abs(prev.vectors),
+                #     t(eig)%*%sigma.cc%*%prev.vectors + delta.k(k)*abs(t(eig))%*%e.rr%*%abs(prev.vectors)
+                # )))
+                # if (eig[1]*d.matrix[1, s] < 0) eig <- -eig
+                # print(isTRUE(all.equal(
+                #     t(eig)%*%sigma.cc%*%prev.vectors + delta.k(k)*t(eig)%*%Ds[[s]]%*%e.rr%*%abs(prev.vectors),
+                #     t(eig)%*%sigma.cc%*%prev.vectors + delta.k(k)*abs(t(eig))%*%e.rr%*%abs(prev.vectors)
+                # )))
             }
+            if (!any(same.s)) stop(paste("No subproblem for i =", i, "worked."))
             s.star <- which.max(lambda.s)
             result$values[i] <- lambda.s[s.star]
             # adjust the signs of `eigenvector` if needed
             eigenvector <- alpha.s[, s.star]
             print("============")
-            print(s.star)
-            print(lambda.s)
-            print(alpha.s)
-            print(t(eigenvector)%*%(sigma.cc%*%prev.vectors + delta.k(k)*Ds[[s.star]]%*%e.rr%*%abs(prev.vectors)))
-            print(t(eigenvector)%*%sigma.cc%*%prev.vectors + delta.k(k)*abs(t(eigenvector))%*%e.rr%*%abs(prev.vectors))
+            # print(eigenvector)
+            # print(sgn(eigenvector))
+            # print(d.matrix[, s.star])
+            # print(lambda.s[s.star])
+            # print(t(eigenvector)%*%sigma.cc%*%eigenvector + delta.k(k)*(t(eigenvector)%*%Ds[[s.star]]%*%e.rr%*%Ds[[s.star]]%*%eigenvector))
+            # print(t(eigenvector)%*%sigma.cc%*%eigenvector + delta.k(k)*(abs(t(eigenvector))%*%e.rr%*%abs(eigenvector)))
+            print(t(eigenvector)%*%sigma.cc%*%prev.vectors + delta.k(k)*t(eigenvector)%*%Ds[[s.star]]%*%e.rr%*%abs(prev.vectors))
             
-            eigenvector <- diag.matrix(sgn(Ds[[s.star]]%*%eigenvector))%*%eigenvector
+            #eigenvector <- diag.matrix(sgn(Ds[[s.star]]%*%eigenvector))%*%eigenvector
+            if (eigenvector[1]*d.matrix[1, s.star] < 0) eigenvector <- -eigenvector
             
+            print(t(eigenvector)%*%sigma.cc%*%prev.vectors + delta.k(k)*t(eigenvector)%*%Ds[[s.star]]%*%e.rr%*%abs(prev.vectors))
             print(t(eigenvector)%*%sigma.cc%*%prev.vectors + delta.k(k)*abs(t(eigenvector))%*%e.rr%*%abs(prev.vectors))
             
             result$vectors[, i] <- eigenvector
