@@ -51,6 +51,20 @@ cov.k <- function(C, R, k = 1) {
     else sigma.cc + delta*diag.matrix(e.rr)
 }
 
+# Estimates the covariance matrix in a robust way.
+robust.cov.k <- function(C, R, k = 1, runs = 100, frac = NULL) {
+    n <- nrow(C)
+    if (is.null(frac)) use <- ceiling((n + ncol(C) + 1)/2) # cf. https://scikit-learn.org/stable/modules/generated/sklearn.covariance.MinCovDet.html
+    else use <- ceiling(frac*n)
+    
+    r <- replicate(runs, {
+        idx <- sample(1:n, use)
+        cov.matrix <- cov.k(C[idx, ], R[idx, ], k)
+        list(cov.matrix, det(cov.matrix))
+    })
+    return(r[2*which.min(r[2*(1:runs)])-1][[1]])
+}
+
 # Normalize the symbolic variables to centre 0 and variance 1.
 normalize.k <- function(C, R, k = 1) {
     .is.legal.k(k)

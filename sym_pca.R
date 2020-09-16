@@ -11,7 +11,7 @@ source("./sym.R")
 # The columns in the centers and ranges input matrices denote different variables and rows define measurements.
 # Returns a list with $values and $vectors, much like the eigen() function.
 sym.pca <- function(C, R, k,
-                    interval.algebra = c("vector space", "extended algebra", "moore algebra"),
+                    interval.algebra = c("vector space", "extended", "moore"),
                     restriction = c("orthogonal", "uncorrelated"),
                     normalize = FALSE
 ) {
@@ -21,12 +21,6 @@ sym.pca <- function(C, R, k,
     interval.algebra <- match.arg(interval.algebra)
     restriction <- match.arg(restriction)
     
-    if (normalize) {
-        l <- normalize.k(C, R, k)
-        C <- l$C
-        R <- l$R
-    }
-    
     p <- ncol(C)
     n <- nrow(C)
     
@@ -34,34 +28,47 @@ sym.pca <- function(C, R, k,
         values = rep(0, p),
         vectors = matrix(0, nrow = p, ncol = p),
         interval.algebra = interval.algebra,
-        restriction = restriction,
-        k = k
+        restriction = restriction
     )
     
+    if (!isTRUE(all.equal(as.vector(colMeans(C)), rep(0, p)))) {
+        warning("C is not centred")
+        result$muc <- colMeans(C)
+        C <- t(t(C) - result$muc)
+    } else {
+        result$muc <- rep(0, p)
+    }
+    
+    if (normalize) {
+        l <- normalize.k(C, R, k)
+        C <- l$C
+        R <- l$R
+    }
+    
     if (interval.algebra == "vector space" && restriction == "orthogonal") {
-        return(.sym.pca.conventional.case(result, cov.k(C, R, k)))
+        result <- .sym.pca.conventional.case(result, cov.k(C, R, k))
         
     } else if (interval.algebra == "vector space" && restriction == "uncorrelated" && is.full.k(k)) {
-        return(.sym.pca.conventional.case(result, cov.k(C, R, k)))
+        result <- .sym.pca.conventional.case(result, cov.k(C, R, k))
         
     } else if (interval.algebra == "vector space" && restriction == "uncorrelated" && is.diagonal.k(k)) {
-        return(.sym.pca.projection.case(
+        result <- .sym.pca.projection.case(
             result,
             conventional.matrix = cov.k(C, R, k),
             orthogonality.matrix = cov(C)
-        ))
+        )
         
-    } else if (interval.algebra == "extended algebra" && restriction == "orthogonal") {
-        return(.sym.pca.conventional.case(result, cov.k(C, R, k)))
+    } else if (interval.algebra == "extended" && restriction == "orthogonal") {
+        result <- .sym.pca.conventional.case(result, cov.k(C, R, k))
         
-    } else if (interval.algebra == "extended algebra" && restriction == "uncorrelated" && is.diagonal.k(k)) {
-        return(.sym.pca.projection.case(
+    } else if (interval.algebra == "extended" && restriction == "uncorrelated" && is.diagonal.k(k)) {
+        result <- .sym.pca.projection.case(
             result,
             conventional.matrix = cov.k(C, R, k),
             orthogonality.matrix = cov(C)
-        ))
+        )
         
-    } else if (interval.algebra == "extended algebra" && restriction == "uncorrelated" && is.full.k(k)) {
+    } else if (interval.algebra == "extended" && restriction == "uncorrelated" && is.full.k(k)) {
         # this instance is special-cased, solve directly
         sigma.cc <- cov(C)
         quadratic.matrix <- sigma.cc + delta.k(k) * t(R)%*%R/nrow(R)
@@ -78,25 +85,23 @@ sym.pca <- function(C, R, k,
             result$vectors[, i] <- sgn(colMeans(R)%*%eigenvector)[1]*eigenvector
         }
         
-        return(result)
-        
-    } else if (interval.algebra == "moore algebra" && restriction == "orthogonal") {
-        return(.sym.pca.modified.quadratic.by.absolute.values(
+    } else if (interval.algebra == "moore" && restriction == "orthogonal") {
+        result <- .sym.pca.modified.quadratic.by.absolute.values(
             result,
             conv.quadratic.matrix = cov(C),
             abs.quadratic.matrix = delta.k(k) * t(R)%*%R/nrow(R)
-        ))
+        )
         
-    } else if (interval.algebra == "moore algebra" && restriction == "uncorrelated" && is.diagonal.k(k)) {
+    } else if (interval.algebra == "moore" && restriction == "uncorrelated" && is.diagonal.k(k)) {
         sigma.cc <- cov(C)
-        return(.sym.pca.modified.quadratic.by.absolute.values(
+        result <- .sym.pca.modified.quadratic.by.absolute.values(
             result,
             conv.quadratic.matrix = sigma.cc,
             abs.quadratic.matrix = delta.k(k) * t(R)%*%R/nrow(R),
             orthogonality.matrix = sigma.cc
-        ))
+        )
         
-    } else if (interval.algebra == "moore algebra" && restriction == "uncorrelated" && is.full.k(k)) {
+    } else if (interval.algebra == "moore" && restriction == "uncorrelated" && is.full.k(k)) {
         # this instance is special-cased, solve directly
         sigma.cc <- cov(C)
         e.rr <- t(R)%*%R/nrow(R)
@@ -168,11 +173,26 @@ sym.pca <- function(C, R, k,
             result$vectors[, i] <- eigenvector
         }
         
-        return(result)
-        
     } else {
         stop(paste(interval.algebra, restriction, k, "not implemented."))
     }
+    
+    
+    result$score.C <- function(C) {
+        return(C %*% result$vectors)
+    }
+    result$score.R <- function(R) {
+        if (interval.algebra == "vector space") return(R %*% result$vectors)
+        if (interval.algebra ==     "extended") return(abs(R %*% result$vectors))
+        if (interval.algebra ==        "moore") return(R %*% abs(result$vectors))
+    }
+    result$score <- function(C, R) {
+        return(list(
+            C = result$score.C(C),
+            R = result$score.R(R)
+        ))
+    }
+    return(result)
 }
 
 .sym.pca.conventional.case <- function(result, conventional.matrix) {

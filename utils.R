@@ -66,3 +66,70 @@ orthogonal.projection.matrix <- function(vector.matrix) {
     }
     result
 }
+
+# Helper function to set the axis of the plots
+stretch.axis <- function(axis) {
+    axis.range <- axis[2] - axis[1]
+    delta <- 0.1*axis.range
+    return(c(axis[1]-delta, axis[2]+delta))
+}
+
+# Helper function to plot two variables, one VS the other
+plot.VS <- function(C, R, vars, border = NULL, saveToPDF = "") {
+    # Plots the vars[1] variable VS vars[2].
+    xaxis <- stretch.axis(c(
+        min(C[, vars[1]]-abs(R[, vars[1]])),
+        max(C[, vars[1]]+abs(R[, vars[1]]))
+    ))
+    yaxis <- stretch.axis(c(
+        min(C[, vars[2]]-abs(R[, vars[2]])),
+        max(C[, vars[2]]+abs(R[, vars[2]]))
+    ))
+    if (length(saveToPDF) > 0) pdf(paste0(saveToPDF, colnames(C)[vars[1]], "_vs_", colnames(C)[vars[2]],".pdf"))
+    plot(
+        xaxis,
+        yaxis,
+        xlab = colnames(C)[vars[1]],
+        ylab = colnames(C)[vars[2]],
+        main = paste("Intervals for", colnames(C)[vars[1]], "and", colnames(C)[vars[2]]),
+    )
+    rect(
+        xleft = C[, vars[1]]-R[, vars[1]],
+        ybottom = C[, vars[2]]-R[, vars[2]],
+        xright = C[, vars[1]]+R[, vars[1]],
+        ytop = C[, vars[2]]+R[, vars[2]],
+        border = border
+    )
+    dev.off()
+    #legend("topright", legend=as.character(clevels), fill=colours, title="relay")
+}
+
+# Helper function to plot interval variables
+plot.interval <- function(C, R, var, col = NULL, saveToPDF = "") {
+    # Plots the intervals of the variable var.
+    xaxis <- stretch.axis(c(
+        min(C[, var]-abs(R[, var])),
+        max(C[, var]+abs(R[, var]))
+    ))
+    plot_height <- max(R[, var]) - min(R[, var])
+    if (length(saveToPDF) > 0) pdf(paste0(saveToPDF, colnames(C)[var], ".pdf"))
+    plot(
+        xaxis,
+        c(
+            min(R[, var]),
+            max(R[, var])
+        ),
+        xlab = colnames(C)[var],
+        ylab = "Range",
+        main = paste("Intervals for", colnames(C)[var], "with y = range"),
+    )
+    rect(
+        xleft = C[, var]-R[, var],
+        ybottom = R[, var]-plot_height/100,
+        xright = C[, var]+R[, var],
+        ytop = R[, var]+plot_height/100,
+        density = 50,
+        col = col
+    )
+    if (length(saveTo) > 0) dev.off()
+}
