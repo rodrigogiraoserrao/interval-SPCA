@@ -75,7 +75,7 @@ stretch.axis <- function(axis) {
 }
 
 # Helper function to plot two variables, one VS the other
-plot.VS <- function(C, R, vars, border = NULL, saveToPDF = "") {
+plot.VS <- function(C, R, vars, border = NULL, saveToPDF = "", ...) {
     # Plots the vars[1] variable VS vars[2].
     xaxis <- stretch.axis(c(
         min(C[, vars[1]]-abs(R[, vars[1]])),
@@ -85,13 +85,13 @@ plot.VS <- function(C, R, vars, border = NULL, saveToPDF = "") {
         min(C[, vars[2]]-abs(R[, vars[2]])),
         max(C[, vars[2]]+abs(R[, vars[2]]))
     ))
-    if (length(saveToPDF) > 0) pdf(paste0(saveToPDF, colnames(C)[vars[1]], "_vs_", colnames(C)[vars[2]],".pdf"))
+    if (nchar(saveToPDF) > 0) pdf(saveToPDF)
     plot(
         xaxis,
         yaxis,
         xlab = colnames(C)[vars[1]],
         ylab = colnames(C)[vars[2]],
-        main = paste("Intervals for", colnames(C)[vars[1]], "and", colnames(C)[vars[2]]),
+        ...
     )
     rect(
         xleft = C[, vars[1]]-R[, vars[1]],
@@ -100,7 +100,7 @@ plot.VS <- function(C, R, vars, border = NULL, saveToPDF = "") {
         ytop = C[, vars[2]]+R[, vars[2]],
         border = border
     )
-    dev.off()
+    if (nchar(saveToPDF) > 0) dev.off()
     #legend("topright", legend=as.character(clevels), fill=colours, title="relay")
 }
 
@@ -112,7 +112,7 @@ plot.interval <- function(C, R, var, col = NULL, saveToPDF = "") {
         max(C[, var]+abs(R[, var]))
     ))
     plot_height <- max(R[, var]) - min(R[, var])
-    if (length(saveToPDF) > 0) pdf(paste0(saveToPDF, colnames(C)[var], ".pdf"))
+    if (nchar(saveToPDF) > 0) pdf(saveToPDF)
     plot(
         xaxis,
         c(
@@ -121,7 +121,7 @@ plot.interval <- function(C, R, var, col = NULL, saveToPDF = "") {
         ),
         xlab = colnames(C)[var],
         ylab = "Range",
-        main = paste("Intervals for", colnames(C)[var], "with y = range"),
+        ...
     )
     rect(
         xleft = C[, var]-R[, var],
@@ -131,5 +131,16 @@ plot.interval <- function(C, R, var, col = NULL, saveToPDF = "") {
         density = 50,
         col = col
     )
-    if (length(saveTo) > 0) dev.off()
+    if (nchar(saveToPDF) > 0) dev.off()
+}
+
+# Computes the ratio of variance explained by the consecutive variables
+var.explained <- function(vars) {
+    vars <- sort(vars, decreasing = TRUE)
+    cumsum(vars)/sum(vars)
+}
+
+# Ensures a vector or a row/column matrix is a column matrix
+to.column <- function(v) {
+    matrix(v, nrow=length(v), ncol=1)
 }
