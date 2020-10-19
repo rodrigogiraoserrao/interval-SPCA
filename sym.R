@@ -40,29 +40,39 @@ var.k <- function(C, R, k = 1) {
     diag(var(C)) + delta.k(k)*diag(t(R)%*%R)/nrow(R)
 }
 
-# Computes the covariance matrix for a vector of intervals.
-cov.k <- function(C, R, k = 1) {
+# Computes the covariance matrix.
+cov.k <- function(sigma.cc, mu.r, sigma.rr, k = 1) {
     .is.legal.k(k)
-    sigma.cc <- cov(C)
-    e.rr <- (t(R)%*%R)/nrow(R)
-    delta <- delta.k(k)
     
+    delta <- delta.k(k)
+    mu.r <- to.column(mu.r)
+    e.rr <- sigma.rr + mu.r%*%t(mu.r)
     if (is.full.k(k)) sigma.cc + delta*e.rr
     else sigma.cc + delta*diag.matrix(e.rr)
 }
 
+# Estimates the covariance matrix from some interval-valued observations.
+estimate.cov.k <- function(C, R, k = 1) {
+    .is.legal.k(k)
+    sigma.cc <- cov(C)
+    mu.r <- to.column(colMeans(R))
+    sigma.rr <- cov(R)
+    cov.k(sigma.cc, mu.r, sigma.rr, k)
+}
+
 # Estimates the covariance matrix in a robust way.
-robust.cov.k <- function(C, R, k = 1, runs = 100, frac = NULL) {
-    n <- nrow(C)
-    if (is.null(frac)) use <- ceiling((n + ncol(C) + 1)/2) # cf. https://scikit-learn.org/stable/modules/generated/sklearn.covariance.MinCovDet.html
-    else use <- ceiling(frac*n)
+robust.cov.k <- function(C, R, k = 1, ...) {
+    .is.legal.k(k)
+    r <- robustbase::covMcd(cbind(C, R), ...)
+    p <- ncol(C)
+    r$mu.c <- r$center[1:p]
+    r$sigma.cc <- r$cov[1:p, 1:p]
+    r$mu.r <- r$center[(p+1):(2*p)]
+    r$e.rr <- r$cov[(p+1):(2*p), (p+1):(2*p)] + t(t(r$mu.r))%*%t(r$mu.r)
     
-    r <- replicate(runs, {
-        idx <- sample(1:n, use)
-        cov.matrix <- cov.k(C[idx, ], R[idx, ], k)
-        list(cov.matrix, det(cov.matrix))
-    })
-    return(r[2*which.min(r[2*(1:runs)])-1][[1]])
+    if (is.full.k(k)) r$cov.k <- r$sigma.cc + delta.k(k)*r$e.rr
+    else r$cov.k <- r$sigma.cc + delta.k(k)*diag.matrix(r$e.rr)
+    return(r)
 }
 
 # Normalize the symbolic variables to centre 0 and variance 1.
