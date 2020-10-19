@@ -40,7 +40,7 @@ var.k <- function(C, R, k = 1) {
     diag(var(C)) + delta.k(k)*diag(t(R)%*%R)/nrow(R)
 }
 
-# Computes the covariance matrix.
+# Computes the symbolic covariance matrix.
 cov.k <- function(sigma.cc, mu.r, sigma.rr, k = 1) {
     .is.legal.k(k)
     
@@ -51,7 +51,7 @@ cov.k <- function(sigma.cc, mu.r, sigma.rr, k = 1) {
     else sigma.cc + delta*diag.matrix(e.rr)
 }
 
-# Estimates the covariance matrix from some interval-valued observations.
+# Estimates the symbolic covariance matrix from some interval-valued observations.
 estimate.cov.k <- function(C, R, k = 1) {
     .is.legal.k(k)
     sigma.cc <- cov(C)
@@ -60,29 +60,18 @@ estimate.cov.k <- function(C, R, k = 1) {
     cov.k(sigma.cc, mu.r, sigma.rr, k)
 }
 
-# Estimates the covariance matrix in a robust way.
+# Estimates the symbolic covariance matrix in a robust way.
 robust.cov.k <- function(C, R, k = 1, ...) {
     .is.legal.k(k)
     r <- robustbase::covMcd(cbind(C, R), ...)
     p <- ncol(C)
-    r$mu.c <- r$center[1:p]
+    r$mu.c <- to.column(r$center[1:p])
     r$sigma.cc <- r$cov[1:p, 1:p]
-    r$mu.r <- r$center[(p+1):(2*p)]
-    r$e.rr <- r$cov[(p+1):(2*p), (p+1):(2*p)] + t(t(r$mu.r))%*%t(r$mu.r)
+    r$mu.r <- to.column(r$center[(p+1):(2*p)])
+    r$sigma.rr <- r$cov[(p+1):(2*p), (p+1):(2*p)]
+    r$e.rr <- r$sigma.rr + r$mu.r%*%t(r$mu.r)
     
     if (is.full.k(k)) r$cov.k <- r$sigma.cc + delta.k(k)*r$e.rr
     else r$cov.k <- r$sigma.cc + delta.k(k)*diag.matrix(r$e.rr)
     return(r)
-}
-
-# Normalize the symbolic variables to centre 0 and variance 1.
-normalize.k <- function(C, R, k = 1) {
-    .is.legal.k(k)
-    # recenter
-    mu.C <- colMeans(C)
-    C_ <- sweep(C, 2, mu.C, "-")
-    sd <- sqrt(var.k(C_, R, k))
-    C_ <- sweep(C_, 2, sd, "/")
-    R_ <- sweep(R, 2, sd, "/")
-    return(list(C=C_, R=R_))
 }
