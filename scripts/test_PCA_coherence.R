@@ -31,31 +31,72 @@ R <- as.matrix(data %>% select(!!paste0("R", 1:12)))
 colnames(R) <- probes
 
 # Symbolic global variables
-K <- 3
-METHOD <- "vector space"
-RESTRICTION <- "uncorrelated"
-NORMALIZE <- TRUE
+K <- 2
+GRID.CHECK <- TRUE # set this to enable/disable thorough checking
 
 sigma.cc <- cov(C)
-e.rr <- (t(R)%*%R)/nrow(R)
+e.rr <- cov(R) + to.column(colMeans(R))%*%t(colMeans(R))
 
-# Apply PCA
-result <- sym.pca(C, R, K, interval.algebra = METHOD, restriction = RESTRICTION, normalize = NORMALIZE)
-newC <- result$score.C(C)
-newR <- result$score.R(R)
-newCov <- cov.k(C, R, K)
-
-if (is.diagonal.k(K)) {
-    cov <- t(result$vectors) %*% sigma.cc %*% result$vectors
-} else if (METHOD == "vector space") {
-    cov <- t(result$vectors) %*% (sigma.cc + delta.k(K)*e.rr) %*% result$vectors
-} else if (METHOD == "extended") {
-    a.r <- abs(t(R) %*% result$vectors)
-    cov <- (t(result$vectors) %*% sigma.cc %*% result$vectors) + delta.k(K)*((t(a.r)%*%a.r)/nrow(a.r))
-} else if (METHOD == "moore") {
-    cov <- (t(result$vectors) %*% sigma.cc %*% result$vectors) + delta.k(K)*(abs(t(result$vectors)) %*% e.rr %*% abs(result$vectors))
-} else {
-    stop("You don't know what you are doing!")
+METHODS <- c("vector space", "extended", "moore")
+RESTRICTIONS <- c("orthogonal", "uncorrelated")
+KS <- 1:8
+# Check if we want to go through everything or not
+if (!GRID.CHECK) {
+    METHODS <- c(readline(prompt = "method >> "))
+    RESTRICTIONS <- c(readline(prompt = "restriction >> "))
 }
 
-print(isTRUE(all.equal(newCov, cov)))
+sapply(METHODS, function(METHOD) {
+    sapply(RESTRICTIONS, function(RESTRICTION) {
+        checks <- sapply(KS, function(K) {
+            checks <- c(FALSE, FALSE)
+            names(checks) <- c("covs match", "valid restriction")
+            
+            # Apply PCA
+            result <- sym.pca(K, interval.algebra = METHOD, restriction = RESTRICTION, C, R)
+            newC <- result$score.C(C)
+            newR <- result$score.R(R)
+            newCov <- estimate.cov.k(newC, newR, K)
+            
+            #### SANITY CHECKS START HERE
+            
+            # Check if the covariances computed both ways match.
+            if (is.diagonal.k(K)) {
+                if (METHOD == "moore") cov <- (t(result$vectors) %*% sigma.cc %*% result$vectors) + delta.k(K)*diag.matrix(abs(t(result$vectors)) %*% e.rr %*% abs(result$vectors))
+                else cov <- (t(result$vectors) %*% sigma.cc %*% result$vectors) + delta.k(K)*diag.matrix(t(result$vectors) %*% e.rr %*% result$vectors)
+            } else if (METHOD == "vector space") {
+                cov <- t(result$vectors) %*% (sigma.cc + delta.k(K)*e.rr) %*% result$vectors
+            } else if (METHOD == "extended") {
+                a.r <- abs(R %*% result$vectors)
+                a.rr <- cov(a.r) + to.column(colMeans(a.r))%*%t(colMeans(a.r))
+                cov <- (t(result$vectors) %*% sigma.cc %*% result$vectors) + delta.k(K)*a.rr
+            } else if (METHOD == "moore") {
+                cov <- (t(result$vectors) %*% sigma.cc %*% result$vectors) + delta.k(K)*(abs(t(result$vectors)) %*% e.rr %*% abs(result$vectors))
+            } else {
+                stop("You don't know what you are doing!")
+            }
+            checks[1] <- isTRUE(all.equal(cov, newCov, tolerance = 10^(-6)))
+            
+            # Check if the PCs satisfy the restriction they should
+            if (RESTRICTION == "orthogonal")  {
+                valid.restriction <- isTRUE(all.equal(t(result$vectors) %*% result$vectors, diag(nrow(newCov)), tolerance = 10^(-6)))
+            } else if (RESTRICTION == "uncorrelated") {
+                valid.restriction <- isTRUE(all.equal(cov - diag.matrix(cov), matrix(0, nrow = nrow(cov), ncol = ncol(cov)), tolerance = 10^(-6)))
+            }
+            checks[2] <- valid.restriction
+            if (!GRID.CHECK) print(checks)
+            return(checks)
+        })
+        
+        # check which values of K passed all tests
+        test.results <- apply(checks, 2, all)
+        print(
+            paste(
+                ifelse(all(test.results), "V", "X"),
+                str_pad(METHOD, 3+max(map_int(METHODS, nchar)), side = "right"),
+                str_pad(RESTRICTION, 3+max(map_int(RESTRICTIONS, nchar)), side = "right"),
+                paste(ifelse(test.results, ".", "X"), collapse = "")
+            )
+        )
+    })
+})
