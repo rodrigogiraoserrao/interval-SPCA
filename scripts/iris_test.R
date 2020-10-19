@@ -68,7 +68,7 @@ for (i in 1:n_groups) {
 par(mfrow = c(2,3))
 
 # Find the 2 columns with greatest variance and plot their intervals.
-sigma.k <- cov.k(C, R, K)
+sigma.k <- estimate.cov.k(C, R, K)
 vars.k <- diag(sigma.k)
 trace <- sum(vars.k)
 cols <- sort.int(vars.k, decreasing = TRUE, index.return = TRUE)$ix[conv]
