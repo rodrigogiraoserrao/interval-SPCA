@@ -144,3 +144,34 @@ var.explained <- function(vars) {
 to.column <- function(v) {
     matrix(v, nrow=length(v), ncol=1)
 }
+
+to.tex.row <- function(vector, pad.with = NULL) {
+    if (!is.null(pad.with)) {
+        for (i in 1:length(vector)) {
+            vector[i] <- str_pad(vector[i], pad.with, side = "left")
+        }
+    }
+    paste(vector, sep = "", collapse = " & ")
+}
+
+to.tex.numeric.table.row <- function(vector, pad.with = NULL) {
+    if (!is.null(pad.with)) pad.with <- 2 + pad.with
+    to.tex.row(paste0("$", vector, "$"), pad.with = pad.with)
+}
+
+to.tex.table <- function(matrix) {
+    result <- rep(NA, nrow(matrix))
+    max.width <- max(map_int(c(matrix), nchar))
+    for (i in 1:nrow(matrix)) result[i] <- to.tex.row(matrix[i, ], pad.with = max.width)
+    paste(result, collapse = " \\\\\n")
+}
+
+to.tex.numeric.table <- function(matrix) {
+    result <- rep("", nrow(matrix))
+    max.width <- max(map_int(c(matrix), nchar))
+    for (i in 1:nrow(matrix)) {
+        result[i] <- to.tex.numeric.table.row(matrix[i, ], pad.with = max.width)
+    }
+    # Use `writeLines` to print the result decently
+    paste(result, collapse = " \\\\\n")
+}

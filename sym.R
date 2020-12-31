@@ -29,19 +29,19 @@ is.diagonal.k <- function(k) {
 }
 
 # Retrieve the \delta_k constant relative to a symbolic model.
-delta.k <- function(k = 1) {
+delta.k <- function(k) {
     .is.legal.k(k)
     DELTAS[k]
 }
 
 # Computes the symbolic variance of a vector of intervals.
-var.k <- function(C, R, k = 1) {
+var.k <- function(C, R, k) {
     .is.legal.k(k)
     diag(var(C)) + delta.k(k)*diag(t(R)%*%R)/nrow(R)
 }
 
 # Computes the symbolic covariance matrix.
-cov.k <- function(sigma.cc, mu.r, sigma.rr, k = 1) {
+cov.k <- function(sigma.cc, mu.r, sigma.rr, k) {
     .is.legal.k(k)
     
     delta <- delta.k(k)
@@ -51,8 +51,8 @@ cov.k <- function(sigma.cc, mu.r, sigma.rr, k = 1) {
     else sigma.cc + delta*diag.matrix(e.rr)
 }
 
-# Estimates the symbolic covariance matrix from some interval-valued observations.
-estimate.cov.k <- function(C, R, k = 1) {
+# Estimates the symbolic covariance matrix from some interval valued observations.
+estimate.cov.k <- function(C, R, k) {
     .is.legal.k(k)
     sigma.cc <- cov(C)
     mu.r <- to.column(colMeans(R))
@@ -61,7 +61,7 @@ estimate.cov.k <- function(C, R, k = 1) {
 }
 
 # Estimates the symbolic covariance matrix in a robust way.
-robust.cov.k <- function(C, R, k = 1, ...) {
+robust.cov.k <- function(C, R, k, ...) {
     .is.legal.k(k)
     r <- robustbase::covMcd(cbind(C, R), ...)
     p <- ncol(C)
@@ -74,4 +74,23 @@ robust.cov.k <- function(C, R, k = 1, ...) {
     if (is.full.k(k)) r$cov.k <- r$sigma.cc + delta.k(k)*r$e.rr
     else r$cov.k <- r$sigma.cc + delta.k(k)*diag.matrix(r$e.rr)
     return(r)
+}
+
+# Estimates the correlation between interval valued variables.
+# The variables of the first (C, R) pair are along the rows and the variables of the second (C, R) pair are along the columns.
+estimate.corr.k <- function(C1, R1, C2, R2, k) {
+    .is.legal.k(k)
+    covs.c <- cov(C1, C2)
+    result <- covs.c
+    
+    if (is.full.k(k)) result <- result + delta.k(k)*t(R1)%*%R2/nrow(R1)
+    
+    sds1 <- sqrt(diag(estimate.cov.k(C1, R1, k)))
+    sds2 <- sqrt(diag(estimate.cov.k(C2, R2, k)))
+    
+    # Divide by the standard deviations.
+    result <- result / sds1
+    result <- sweep(result, 2, sds2, `/`)
+    
+    return(result)
 }

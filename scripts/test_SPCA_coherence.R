@@ -1,10 +1,6 @@
 ### This script performs a basic check to see if the covariance of the PCs matches
 ## the theoretical formula I found.
 
-# author: Rodrigo Girão Serrão
-# email: rodrigogiraoserrao@gmail.com
-# date: 16/09/2020
-
 source("./sym.R")
 source("./sym_pca.R")
 source("./utils.R")
@@ -17,7 +13,7 @@ library(tidyverse)
 
 load("data/dataRTT_all.RData")
 
-data <- data.T1.all.noNA %>% rtt.to.symbolic  # dataset to use
+data <- data.T1.all.noNA %>% rtt.to.horizontal.symbolic  # dataset to use
 # Delete heavy variables from memory.
 remove(
     list=c(
@@ -30,8 +26,6 @@ colnames(C) <- probes
 R <- as.matrix(data %>% select(!!paste0("R", 1:12)))
 colnames(R) <- probes
 
-# Symbolic global variables
-K <- 2
 GRID.CHECK <- TRUE # set this to enable/disable thorough checking
 
 sigma.cc <- cov(C)
@@ -81,7 +75,8 @@ sapply(METHODS, function(METHOD) {
             if (RESTRICTION == "orthogonal")  {
                 valid.restriction <- isTRUE(all.equal(t(result$vectors) %*% result$vectors, diag(nrow(newCov)), tolerance = 10^(-6)))
             } else if (RESTRICTION == "uncorrelated") {
-                valid.restriction <- isTRUE(all.equal(cov - diag.matrix(cov), matrix(0, nrow = nrow(cov), ncol = ncol(cov)), tolerance = 10^(-6)))
+                cov.newC <- cov(newC)
+                valid.restriction <- isTRUE(all.equal(cov.newC, diag.matrix(cov.newC), tolerance = 10^(-6)))
             }
             checks[2] <- valid.restriction
             if (!GRID.CHECK) print(checks)

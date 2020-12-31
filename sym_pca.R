@@ -86,6 +86,7 @@ sym.pca <- function(k,
     if (!all((ps == max(ps)) | (-1 == ps))) stop("Number of variables cannot be inferred correctly.")
     p <- max(ps)
     
+    e.rr = sigma.rr + mu.r%*%t(mu.r)
     # Initialise the return variable.
     result <- list(
         values = rep(0, p),
@@ -96,48 +97,21 @@ sym.pca <- function(k,
         mu.r = mu.r,
         sigma.cc = sigma.cc,
         sigma.rr = sigma.rr,
-        e.rr = sigma.rr + mu.r%*%t(mu.r)
+        e.rr = e.rr
     )
     
-    if (interval.algebra == "vector space" && restriction == "orthogonal") {
+    ### Extended Algebra
+    if (interval.algebra == "extended" && restriction == "orthogonal") {
         result <- .sym.pca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, k))
         
-    } else if (interval.algebra == "vector space" && restriction == "uncorrelated" && is.full.k(k)) {
-        result <- .sym.pca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, k))
-        
-    } else if (interval.algebra == "vector space" && restriction == "uncorrelated" && is.diagonal.k(k)) {
+    } else if (interval.algebra == "extended" && restriction == "uncorrelated") {
         result <- .sym.pca.projection.case(
             result,
             conventional.matrix = cov.k(sigma.cc, mu.r, sigma.rr, k),
             orthogonality.matrix = sigma.cc
         )
-        
-    } else if (interval.algebra == "extended" && restriction == "orthogonal") {
-        result <- .sym.pca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, k))
-        
-    } else if (interval.algebra == "extended" && restriction == "uncorrelated" && is.diagonal.k(k)) {
-        result <- .sym.pca.projection.case(
-            result,
-            conventional.matrix = cov.k(sigma.cc, mu.r, sigma.rr, k),
-            orthogonality.matrix = sigma.cc
-        )
-        
-    } else if (interval.algebra == "extended" && restriction == "uncorrelated" && is.full.k(k)) {
-        # this instance is special-cased, solve directly
-        quadratic.matrix <- sigma.cc + delta.k(k) * e.rr
-        for (i in safe.colon(1, p)) {
-            modified.vectors <- sigma.cc%*%result$vectors[, safe.colon(1, i-1)] + delta.k(k) * e.rr%*%result$vectors[, safe.colon(1, i-1)]
-            orthogonalized <- gram.schmidt(modified.vectors)
-            projection.matrix <- orthogonal.projection.matrix(orthogonalized)
-            modified.matrix <- t(projection.matrix) %*% quadratic.matrix %*% projection.matrix
-            partial.result <- eigen(modified.matrix, symmetric = TRUE)
-            result$values[i] <- partial.result$values[1]
-            eigenvector <- partial.result$vectors[, 1]
-            # we may need to modify the sign of `eigenvector` depending on the sign of `t(eigenvector)%*%R`
-            # we only have observations of R so estimate it
-            result$vectors[, i] <- sgn(colMeans(R)%*%eigenvector)[1]*eigenvector
-        }
-        
+    
+    ### Moore Algebra
     } else if (interval.algebra == "moore" && restriction == "orthogonal") {
         result <- .sym.pca.modified.quadratic.by.absolute.values(
             result,
@@ -145,7 +119,7 @@ sym.pca <- function(k,
             abs.quadratic.matrix = delta.k(k) * e.rr
         )
         
-    } else if (interval.algebra == "moore" && restriction == "uncorrelated" && is.diagonal.k(k)) {
+    } else if (interval.algebra == "moore" && restriction == "uncorrelated") {
         result <- .sym.pca.modified.quadratic.by.absolute.values(
             result,
             conv.quadratic.matrix = sigma.cc,
@@ -153,15 +127,18 @@ sym.pca <- function(k,
             orthogonality.matrix = sigma.cc
         )
         
-    } else if (interval.algebra == "moore" && restriction == "uncorrelated" && is.full.k(k)) {
-        # this isn't supposed to work:
-        warning("THIS ISN'T WORKING YET, YOU MAY HAVE USED THIS BY MISTAKE.")
-        result <- .sym.pca.modified.quadratic.by.absolute.values(
+    ### Vector Space Algebra
+    } else if (interval.algebra == "vector space" && restriction == "orthogonal") {
+        result <- .sym.pca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, k))
+        
+    } else if (interval.algebra == "vector space" && restriction == "uncorrelated") {
+        result <- .sym.pca.projection.case(
             result,
-            conv.quadratic.matrix = sigma.cc,
-            abs.quadratic.matrix = e.rr,
+            conventional.matrix = cov.k(sigma.cc, mu.r, sigma.rr, k),
             orthogonality.matrix = sigma.cc
         )
+        
+    ### Error out on unknown algebras/restrictions.
     } else {
         stop(paste(interval.algebra, restriction, k, "not implemented."))
     }
@@ -205,6 +182,8 @@ robust.sym.pca <- function(k,
     
     spca <- sym.pca(
                     k, interval.algebra, restriction,
+                    C = C,
+                    R = R,
                     mu.c = result$robust$mu.c,
                     sigma.cc = result$robust$sigma.cc,
                     mu.r = result$robust$mu.r,
@@ -273,7 +252,24 @@ robust.sym.pca <- function(k,
         }
         s.star <- which.max(lambda.s)
         result$values[i] <- lambda.s[s.star]
-        result$vectors[, i] <- alpha.s[, s.star]
+        if (lambda.s[s.star] > 0) {
+            result$vectors[, i] <- alpha.s[, s.star]
+        } else {
+            # Find any vector that is orthogonal to all the columns in `orthogonalized`.
+            # Iterate over the vectors in the canonical basis and pick the first that is linearly independent.
+            col <- ncol(orthogonalized) + 1
+            larger.orthogonalized <- matrix(orthogonalized, ncol = col, nrow = nrow(orthogonalized))
+            for (j in safe.colon(1, p)) {
+                larger.orthogonalized[, col] <- rep(0, p)
+                larger.orthogonalized[j, col] <- 1
+                new.orthogonalized <- gram.schmidt(larger.orthogonalized)
+                candidate <- new.orthogonalized[, col]
+                if (sum(candidate*candidate) > 10^(-6)) {
+                    result$vectors[, i] <- candidate
+                    break
+                }
+            }
+        }
     }
     
     return(result)
