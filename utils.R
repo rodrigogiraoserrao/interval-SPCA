@@ -1,3 +1,6 @@
+library(purrr)
+library(stringr)
+
 # Implements a "safe" version of a:b that returns an empty vector when b < a.
 safe.colon <- function(from = 1, to = 1) {
     if (to < from) c()

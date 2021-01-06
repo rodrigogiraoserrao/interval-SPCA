@@ -48,18 +48,20 @@ data <- data.frame(data) %>% transform(
 # Plot mean MRE across models ----
 
 data %>%
-    filter(measure == "MRE") %>%
+    filter(measure == "ACV") %>%
     group_by(model, robustness, maxp) %>%
     summarise(mean = mean(value)) %>%
-    ggplot(aes(x = maxp, y = mean, colour = model), alpha = 0.8) +
-    geom_line() +
-    geom_point() +
+    ggplot(aes(x = maxp, y = 1-mean, colour = model), alpha = 0.8) +
+    geom_line(size=0.75) +
+    geom_point(size=1.5) +
     facet_grid(rows = vars(robustness)) +
     labs(
         x = "p",
-        y = "mean MRE",
-        title = "Mean MRE for each value of p and varying models."
-    )
+        y = "global (1-ACV)",
+        color = "Config."
+        #title = "Mean MRE for each value of p and varying models."
+    ) +
+    scale_color_discrete(labels = c("EA, k = 3", "EA, k = 5", "EA, k = 8", "MA, k = 3", "MA, k = 5", "MA, k = 8"))
 
 # Old plots ----
 

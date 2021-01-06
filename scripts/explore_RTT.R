@@ -85,6 +85,15 @@ vdata %>% filter(C + R < 800) %>%
     labs(fill = "Relay")
 
 
+# SMALL exploratory plot (cf. Subtil) for extended abstract ----
+
+start_at <- which.max(6 == lubridate::day(data$timestamp)) # Plot from 6th of June forward.
+vdata %>% filter(C + R < 800) %>% filter(probe %in% c("Amsterdam","VdM")) %>% filter(timestamp >= data$timestamp[start_at]) %>%
+    basic.plot(annotations %>% filter(xmin > data$timestamp[start_at])) +
+    facet_grid(rows = vars(probe), scales = "free") +
+    labs(fill = "Relay")
+
+
 # Exploratory plot (cf. Subtil) with heuristic ----
 
 shadow.attacks(

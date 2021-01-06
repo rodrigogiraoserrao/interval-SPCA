@@ -3,6 +3,7 @@
 # Check how robust/classical SPCA behave when the mean of the centres is shifted.
 
 rm(list = ls())
+source("./utils.R")
 load("./scripts/robust_sim_study_crazy_means_eps_1_2_5.RData")
 
 Eps <- length(values[[1]])
@@ -19,8 +20,10 @@ for (model in 1:length(values)) {
     }
 }
 
-print(robust.meanMRE)
-print(classical.meanMRE)
+# print(robust.meanMRE)
+writeLines(to.tex.numeric.table(round(robust.meanMRE, 3)))
+# print(classical.meanMRE)
+writeLines(to.tex.numeric.table(round(classical.meanMRE, 3)))
 print(mean(robust.meanMRE[MREdiffs>0]/classical.meanMRE[MREdiffs>0]))
 print(mean(classical.meanMRE[MREdiffs<0]/robust.meanMRE[MREdiffs<0]))
 print(MREdiffs > 0)
@@ -39,8 +42,10 @@ for (model in 1:length(values)) {
     }
 }
 
-print(robust.meanACV)
-print(classical.meanACV)
+# print(robust.meanACV)
+writeLines(to.tex.numeric.table(round(1000*robust.meanACV, 3)))
+# print(classical.meanACV)
+writeLines(to.tex.numeric.table(round(1000*classical.meanACV, 3)))
 print(mean(robust.meanACV[ACVdiffs>0]/classical.meanACV[ACVdiffs>0]))
 print(mean(classical.meanACV[ACVdiffs<0]/robust.meanACV[ACVdiffs<0]))
 print(ACVdiffs > 0)
