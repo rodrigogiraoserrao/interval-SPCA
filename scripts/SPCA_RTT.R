@@ -36,7 +36,7 @@ matrices <- extract.CR(data)
 # Uncomment the two lines below if using the robust.sym.pca method.
 # matrices$C <- matrices$C[, c(1, 3:12)]
 # matrices$R <- matrices$R[, c(1, 3:12)]
-r <- robust.sym.pca(k = K, interval.algebra = IA, restriction = RESTRICTION,
+r <- sym.pca(k = K, interval.algebra = IA, restriction = RESTRICTION,
              C = matrices$C, R = matrices$R)
 
 # Symbolic correlation between Johannesburg 1 and Johannesburg 2 is 0.9566833
@@ -55,6 +55,15 @@ newR <- r$score.R(matrices$R)
 print("Correlations between vars and pcs.")
 writeLines(to.tex.numeric.table(round(estimate.corr.k(matrices$C, matrices$R, newC, newR, K), 3)))
 
+
+# Score plot ----
+
+data.frame(values = r$values) %>% ggplot(aes(x = 1:12, y = values)) +
+    geom_line() +
+    geom_point() +
+    labs(x = "p") +
+    #scale_y_log10() +
+    scale_x_continuous(breaks = c(2,4,6,8,10,12))
 
 
 # Prepare to plot stuff ----

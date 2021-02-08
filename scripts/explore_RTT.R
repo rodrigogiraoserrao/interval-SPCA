@@ -31,7 +31,7 @@ basic.plot <- function(data, annotations) {
 
 load("data/dataRTT_all.RData")
 
-base.data <- data.T4.all.noNA
+base.data <- data.T1.all.noNA
 sorted.probes <- sort(probes)
 
 vdata <- rtt.to.vertical.symbolic(base.data) %>%
