@@ -4,10 +4,13 @@
 #
 ##
 
+# (TODO) rename functions that are prefixed with .k to something more meaningful,
+# e.g. var.k and cov.k are terrible function names.
+
 # We need some of the symbolic utility functions.
 source("./utils.R")
 
-# Define all the symbolic methods by their \delta_k constant.
+# Define some useful delta constants.
 DELTAS <- c(0, 0.25, 1/12, 0.25, 1/12, 0.125, 1/24, 1/36 - dnorm(3)/(6*(2*dnorm(3)-1)))
 
 # Checks if this integer k makes sense as the index for a symbolic model.
@@ -19,13 +22,13 @@ DELTAS <- c(0, 0.25, 1/12, 0.25, 1/12, 0.125, 1/24, 1/36 - dnorm(3)/(6*(2*dnorm(
 # Checks if a given index k corresponds to a full symbolic model.
 is.full.k <- function(k) {
     .is.legal.k(k)
-    k %in% c(2, 3)
+    k %in% c(1, 2, 3)
 }
 
 # Checks if a given index k corresponds to a diagonal symbolic model.
 is.diagonal.k <- function(k) {
     .is.legal.k(k)
-    k %in% c(1, 4, 5, 6, 7, 8)
+    k %in% c(4, 5, 6, 7, 8)
 }
 
 # Retrieve the \delta_k constant relative to a symbolic model.
@@ -35,34 +38,47 @@ delta.k <- function(k) {
 }
 
 # Computes the symbolic variance of a vector of intervals.
-var.k <- function(C, R, k) {
-    .is.legal.k(k)
-    diag(var(C)) + delta.k(k)*diag(t(R)%*%R)/nrow(R)
+var.k <- function(C, R, delta) {
+    if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
+    if (!is.numeric(delta)) stop("Delta should be a non-negative real number.")
+    if (!delta >= 0) stop("Delta should be non-negative.")
+
+    return(diag(var(C)) + delta*diag(t(R)%*%R)/nrow(R))
 }
 
 # Computes the symbolic covariance matrix.
-cov.k <- function(sigma.cc, mu.r, sigma.rr, k) {
-    .is.legal.k(k)
+cov.k <- function(sigma.cc, mu.r, sigma.rr, model = c("diagonal", "full"), delta) {
+    model <- match.arg(model)
+    if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
+    if (!is.numeric(delta)) stop("Delta should be a non-negative real number.")
+    if (!delta >= 0) stop("Delta should be non-negative.")
     
-    delta <- delta.k(k)
     mu.r <- to.column(mu.r)
     e.rr <- sigma.rr + mu.r%*%t(mu.r)
-    if (is.full.k(k)) sigma.cc + delta*e.rr
-    else sigma.cc + delta*diag.matrix(e.rr)
+    if (model == "full") return(sigma.cc + delta*e.rr)
+    else return(sigma.cc + delta*diag.matrix(e.rr))
 }
 
 # Estimates the symbolic covariance matrix from some interval valued observations.
-estimate.cov.k <- function(C, R, k) {
-    .is.legal.k(k)
+estimate.cov.k <- function(C, R, model = c("diagonal", "full"), delta) {
+    model <- match.arg(model)
+    if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
+    if (!is.numeric(delta)) stop("Delta should be a non-negative real number.")
+    if (!delta >= 0) stop("Delta should be non-negative.")
+    
     sigma.cc <- cov(C)
     mu.r <- to.column(colMeans(R))
     sigma.rr <- cov(R)
-    cov.k(sigma.cc, mu.r, sigma.rr, k)
+    return(cov.k(sigma.cc, mu.r, sigma.rr, model, delta))
 }
 
 # Estimates the symbolic covariance matrix in a robust way.
-robust.cov.k <- function(C, R, k, ...) {
-    .is.legal.k(k)
+robust.cov.k <- function(C, R, model = c("diagonal", "full"), delta, ...) {
+    model <- match.arg(model)
+    if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
+    if (!is.numeric(delta)) stop("Delta should be a non-negative real number.")
+    if (!delta >= 0) stop("Delta should be non-negative.")
+    
     r <- robustbase::covMcd(cbind(C, R), ...)
     p <- ncol(C)
     r$mu.c <- to.column(r$center[1:p])
@@ -71,22 +87,27 @@ robust.cov.k <- function(C, R, k, ...) {
     r$sigma.rr <- r$cov[(p+1):(2*p), (p+1):(2*p)]
     r$e.rr <- r$sigma.rr + r$mu.r%*%t(r$mu.r)
     
-    if (is.full.k(k)) r$cov.k <- r$sigma.cc + delta.k(k)*r$e.rr
-    else r$cov.k <- r$sigma.cc + delta.k(k)*diag.matrix(r$e.rr)
+    if (model == "full") r$cov.k <- r$sigma.cc + delta*r$e.rr
+    else r$cov.k <- r$sigma.cc + delta*diag.matrix(r$e.rr)
+    
     return(r)
 }
 
 # Estimates the correlation between interval valued variables.
 # The variables of the first (C, R) pair are along the rows and the variables of the second (C, R) pair are along the columns.
-estimate.corr.k <- function(C1, R1, C2, R2, k) {
-    .is.legal.k(k)
+estimate.corr.k <- function(C1, R1, C2, R2, model = c("diagonal", "full"), delta) {
+    model <- match.arg(model)
+    if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
+    if (!is.numeric(delta)) stop("Delta should be a non-negative real number.")
+    if (!delta >= 0) stop("Delta should be non-negative.")
+    
     covs.c <- cov(C1, C2)
     result <- covs.c
     
-    if (is.full.k(k)) result <- result + delta.k(k)*t(R1)%*%R2/nrow(R1)
+    if (model == "full") result <- result + delta*t(R1)%*%R2/nrow(R1)
     
-    sds1 <- sqrt(diag(estimate.cov.k(C1, R1, k)))
-    sds2 <- sqrt(diag(estimate.cov.k(C2, R2, k)))
+    sds1 <- sqrt(diag(estimate.cov.k(C1, R1, model, delta)))
+    sds2 <- sqrt(diag(estimate.cov.k(C2, R2, model, delta)))
     
     # Divide by the standard deviations.
     result <- result / sds1

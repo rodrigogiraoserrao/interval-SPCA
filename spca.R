@@ -14,20 +14,27 @@ source("./sym.R")
 # mu.c and mu.r are px1 column vectors where p=ncol(C)=ncol(R) (if C/R are present).
 # Using sigma.xx and mu.xx takes precedence over estimating parameters directly from the data in C or R.
 # k, interval.algebra and restriction configure the SPCA setting.
-sym.pca <- function(k,
-                    interval.algebra = c("vector space", "extended", "moore"),
-                    restriction = c("orthogonal", "uncorrelated"),
-                    C = NULL,
-                    R = NULL,
-                    mu.c = NULL,
-                    sigma.cc = NULL,
-                    mu.r = NULL,
-                    sigma.rr = NULL
+spca <- function(
+    interval.algebra = c("extended", "moore", "vector space"),
+    restriction = c("orthogonal", "centre-uncorrelated"),
+    model = c("diagonal", "full"),
+    delta,
+    C = NULL,
+    R = NULL,
+    mu.c = NULL,
+    sigma.c = NULL,
+    mu.r = NULL,
+    sigma.rr = NULL
 ) {
     # INPUT VALIDATION - symbolic model checking.
-    .is.legal.k(k)
     interval.algebra <- match.arg(interval.algebra)
     restriction <- match.arg(restriction)
+    model <- match.arg(model)
+    
+    # INPUT VALIDATION - ensure the value for delta makes sense.
+    if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
+    if (!is.numeric(delta)) stop("Delta should be a non-negative real number.")
+    if (!delta >= 0) stop("Delta should be non-negative.")
     
     # Some of the following checks are redundant but are in place to try and the provide the most helpful error messages.
     # INPUT VALIDATION - dimension checking for C/R.
@@ -93,6 +100,8 @@ sym.pca <- function(k,
         vectors = matrix(0, nrow = p, ncol = p),
         interval.algebra = interval.algebra,
         restriction = restriction,
+        model = model,
+        delta = delta,
         mu.c = mu.c,
         mu.r = mu.r,
         sigma.cc = sigma.cc,
@@ -102,45 +111,45 @@ sym.pca <- function(k,
     
     ### Extended Algebra
     if (interval.algebra == "extended" && restriction == "orthogonal") {
-        result <- .sym.pca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, k))
+        result <- .spca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, delta, model))
         
-    } else if (interval.algebra == "extended" && restriction == "uncorrelated") {
-        result <- .sym.pca.projection.case(
+    } else if (interval.algebra == "extended" && restriction == "centre-uncorrelated") {
+        result <- .spca.projection.case(
             result,
-            conventional.matrix = cov.k(sigma.cc, mu.r, sigma.rr, k),
+            conventional.matrix = cov.k(sigma.cc, mu.r, sigma.rr, delta, model),
             orthogonality.matrix = sigma.cc
         )
     
     ### Moore Algebra
     } else if (interval.algebra == "moore" && restriction == "orthogonal") {
-        result <- .sym.pca.modified.quadratic.by.absolute.values(
+        result <- .spca.modified.quadratic.by.absolute.values(
             result,
             conv.quadratic.matrix = sigma.cc,
-            abs.quadratic.matrix = delta.k(k) * e.rr
+            abs.quadratic.matrix = delta * e.rr
         )
         
-    } else if (interval.algebra == "moore" && restriction == "uncorrelated") {
-        result <- .sym.pca.modified.quadratic.by.absolute.values(
+    } else if (interval.algebra == "moore" && restriction == "centre-uncorrelated") {
+        result <- .spca.modified.quadratic.by.absolute.values(
             result,
             conv.quadratic.matrix = sigma.cc,
-            abs.quadratic.matrix = delta.k(k) * e.rr,
+            abs.quadratic.matrix = delta * e.rr,
             orthogonality.matrix = sigma.cc
         )
         
     ### Vector Space Algebra
     } else if (interval.algebra == "vector space" && restriction == "orthogonal") {
-        result <- .sym.pca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, k))
+        result <- .spca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, delta, model))
         
-    } else if (interval.algebra == "vector space" && restriction == "uncorrelated") {
-        result <- .sym.pca.projection.case(
+    } else if (interval.algebra == "vector space" && restriction == "centre-uncorrelated") {
+        result <- .spca.projection.case(
             result,
-            conventional.matrix = cov.k(sigma.cc, mu.r, sigma.rr, k),
+            conventional.matrix = cov.k(sigma.cc, mu.r, sigma.rr, delta, model),
             orthogonality.matrix = sigma.cc
         )
         
     ### Error out on unknown algebras/restrictions.
     } else {
-        stop(paste(interval.algebra, restriction, k, "not implemented."))
+        stop(paste(interval.algebra, restriction, delta, model, "not implemented."))
     }
     
     
@@ -164,44 +173,51 @@ sym.pca <- function(k,
 
 # Computes the robust symbolic principal components.
 # The columns in the centers and ranges input matrices denote different variables and rows define observations.
-robust.sym.pca <- function(k,
-                    interval.algebra = c("vector space", "extended", "moore"),
-                    restriction = c("orthogonal", "uncorrelated"),
-                    C,
-                    R
+rspca <- function(
+    interval.algebra = c("vector space", "extended", "moore"),
+    restriction = c("orthogonal", "uncorrelated"),
+    model = c("diagonal", "full"),
+    delta,
+    C,
+    R
 ) {
-    .is.legal.k(k)
     interval.algebra <- match.arg(interval.algebra)
     restriction <- match.arg(restriction)
     if (nrow(C) != nrow(R)) stop("C and R matrices have different numbers of rows.")
     if (ncol(C) != ncol(R)) stop("C and R matrices have different numbers of columns.")
+    model <- match.arg(model)
+    
+    if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
+    if (!is.numeric(delta)) stop("Delta should be a non-negative real number.")
+    if (!delta >= 0) stop("Delta should be non-negative.")
     
     result <- list(
-        robust = robust.cov.k(C, R, k)
+        robust = robust.cov.k(C, R, model, delta)
     )
     
-    spca <- sym.pca(
-                    k, interval.algebra, restriction,
-                    C = C,
-                    R = R,
-                    mu.c = result$robust$mu.c,
-                    sigma.cc = result$robust$sigma.cc,
-                    mu.r = result$robust$mu.r,
-                    sigma.rr = result$robust$sigma.rr
+    spca <- spca(
+        interval.algebra, restriction,
+        model, delta,
+        C = C,
+        R = R,
+        mu.c = result$robust$mu.c,
+        sigma.cc = result$robust$sigma.cc,
+        mu.r = result$robust$mu.r,
+        sigma.rr = result$robust$sigma.rr
     )
     
     # As seen in https://stackoverflow.com/a/37856431/2828287 to merge lists and update existing values.
     return(utils::modifyList(result, spca))
 }
 
-.sym.pca.conventional.case <- function(result, conventional.matrix) {
+.spca.conventional.case <- function(result, conventional.matrix) {
     partial.result <- eigen(conventional.matrix, symmetric = TRUE)
     result$vectors <- partial.result$vectors
     result$values <- partial.result$values
     return(result)
 }
 
-.sym.pca.projection.case <- function(result, conventional.matrix, orthogonality.matrix = diag(ncol(result$vectors))) {
+.spca.projection.case <- function(result, conventional.matrix, orthogonality.matrix = diag(ncol(result$vectors))) {
     
     # For the first vector the orthogonality restrictions are empty.
     partial.result <- eigen(conventional.matrix, symmetric = TRUE)
@@ -225,7 +241,7 @@ robust.sym.pca <- function(k,
     return(result)
 }
 
-.sym.pca.modified.quadratic.by.absolute.values <- function(
+.spca.modified.quadratic.by.absolute.values <- function(
     result, conv.quadratic.matrix, abs.quadratic.matrix, orthogonality.matrix = diag(ncol(result$vectors))
 ) {
     p <- ncol(result$vectors)
