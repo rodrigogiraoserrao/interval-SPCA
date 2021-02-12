@@ -47,14 +47,12 @@ var.k <- function(C, R, delta) {
 }
 
 # Computes the symbolic covariance matrix.
-cov.k <- function(sigma.cc, mu.r, sigma.rr, model = c("diagonal", "full"), delta) {
+cov.k <- function(sigma.cc, e.rr, model = c("diagonal", "full"), delta) {
     model <- match.arg(model)
     if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
     if (!is.numeric(delta)) stop("Delta should be a non-negative real number.")
     if (!delta >= 0) stop("Delta should be non-negative.")
-    
-    mu.r <- to.column(mu.r)
-    e.rr <- sigma.rr + mu.r%*%t(mu.r)
+
     if (model == "full") return(sigma.cc + delta*e.rr)
     else return(sigma.cc + delta*diag.matrix(e.rr))
 }
@@ -69,7 +67,7 @@ estimate.cov.k <- function(C, R, model = c("diagonal", "full"), delta) {
     sigma.cc <- cov(C)
     mu.r <- to.column(colMeans(R))
     sigma.rr <- cov(R)
-    return(cov.k(sigma.cc, mu.r, sigma.rr, model, delta))
+    return(cov.k(sigma.cc, sigma.rr + mu.r%*%t(mu.r), model, delta))
 }
 
 # Estimates the symbolic covariance matrix in a robust way.

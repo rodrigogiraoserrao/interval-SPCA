@@ -19,6 +19,7 @@ spca <- function(
     restriction = c("orthogonal", "centre-uncorrelated"),
     model = c("diagonal", "full"),
     delta,
+    normalise = FALSE,
     C = NULL,
     R = NULL,
     mu.c = NULL,
@@ -93,7 +94,14 @@ spca <- function(
     if (!all((ps == max(ps)) | (-1 == ps))) stop("Number of variables cannot be inferred correctly.")
     p <- max(ps)
     
-    e.rr = sigma.rr + mu.r%*%t(mu.r)
+    e.rr <- sigma.rr + mu.r%*%t(mu.r)
+    
+    if (normalise) {
+        A <- diag.matrix(cov.k(sigma.cc, e.rr, model, delta))^-.5
+        sigma.cc <- A%*%sigma.cc%*%A
+        e.rr <- A%*%e.rr%*%A
+    }
+    
     # Initialise the return variable.
     result <- list(
         values = rep(0, p),
@@ -102,16 +110,15 @@ spca <- function(
         restriction = restriction,
         model = model,
         delta = delta,
-        mu.c = mu.c,
-        mu.r = mu.r,
+        normalise = normalise,
         sigma.cc = sigma.cc,
-        sigma.rr = sigma.rr,
         e.rr = e.rr
     )
     
+    
     ### Extended Algebra
     if (interval.algebra == "extended" && restriction == "orthogonal") {
-        result <- .spca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, delta, model))
+        result <- .spca.conventional.case(result, cov.k(sigma.cc, e.rr, delta, model))
         
     } else if (interval.algebra == "extended" && restriction == "centre-uncorrelated") {
         result <- .spca.projection.case(
@@ -178,6 +185,7 @@ rspca <- function(
     restriction = c("orthogonal", "uncorrelated"),
     model = c("diagonal", "full"),
     delta,
+    normalise = FALSE,
     C,
     R
 ) {
@@ -197,7 +205,7 @@ rspca <- function(
     
     spca <- spca(
         interval.algebra, restriction,
-        model, delta,
+        model, delta, normalise,
         C = C,
         R = R,
         mu.c = result$robust$mu.c,
