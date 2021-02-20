@@ -113,3 +113,32 @@ estimate.corr.k <- function(C1, R1, C2, R2, model = c("diagonal", "full"), delta
     
     return(result)
 }
+
+warn.about.linear.dependences <- function(C, R) {
+    # Issue warnings for the pairs (i, j) of interval-valued random variables
+    # that are very similar, in the sense that one is a linear function of the other.
+    # To determine these pairs of variables, we perform linear regression on the centres
+    # of the variables and for the pairs of centres that exhibit linear dependence we
+    # use the same regression coefficients on the corresponding ranges.
+    # If those coefficients also represent a good linear regression for the ranges, then
+    # we take that to mean the interval valued variables are essentially the same
+    # and we issue a warning.
+    
+    R.means <- colMeans(R)
+    for (i in 1:(ncol(C)-1)) {
+        for (j in (i+1):ncol(C)) {
+            obj <- lm(C[,i] ~ C[,j])
+            r.squared <- suppressWarnings(summary(obj)$r.squared)
+            if (r.squared < 0.95) next
+            
+            # Try to apply the same coefficients to the ranges.
+            coefs <- obj$coefficients
+            Ri <- coefs[2]*R[,j] + coefs[1]
+            res <- R[,i] - Ri
+            r.squared <- 1 - sum(res^2)/sum((R[,i]-R.means[i])^2)
+            if (r.squared < 0.95) next
+            
+            warning(paste("Interval valued variables", i, "and", j, "are very similar."))
+        }
+    }
+}
