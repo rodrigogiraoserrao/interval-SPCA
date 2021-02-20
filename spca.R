@@ -23,7 +23,7 @@ spca <- function(
     C = NULL,
     R = NULL,
     mu.c = NULL,
-    sigma.c = NULL,
+    sigma.cc = NULL,
     mu.r = NULL,
     sigma.rr = NULL
 ) {
@@ -106,7 +106,7 @@ spca <- function(
     result <- list(
         values = rep(0, p),
         vectors = matrix(0, nrow = p, ncol = p),
-        interval.algebra = interval.algebra,
+        interval.algebra = interval.algebra, # Keep these values for reference. ↓
         restriction = restriction,
         model = model,
         delta = delta,
@@ -115,15 +115,18 @@ spca <- function(
         e.rr = e.rr
     )
     
+    if (model == "diagonal" && !is.null(C) && !is.null(R)) {
+        warn.about.linear.dependences(C, R)
+    }
     
     ### Extended Algebra
     if (interval.algebra == "extended" && restriction == "orthogonal") {
-        result <- .spca.conventional.case(result, cov.k(sigma.cc, e.rr, delta, model))
+        result <- .spca.conventional.case(result, cov.k(sigma.cc, e.rr, model, delta))
         
     } else if (interval.algebra == "extended" && restriction == "centre-uncorrelated") {
         result <- .spca.projection.case(
             result,
-            conventional.matrix = cov.k(sigma.cc, mu.r, sigma.rr, delta, model),
+            conventional.matrix = cov.k(sigma.cc, e.rr, model, delta),
             orthogonality.matrix = sigma.cc
         )
     
@@ -145,12 +148,12 @@ spca <- function(
         
     ### Vector Space Algebra
     } else if (interval.algebra == "vector space" && restriction == "orthogonal") {
-        result <- .spca.conventional.case(result, cov.k(sigma.cc, mu.r, sigma.rr, delta, model))
+        result <- .spca.conventional.case(result, cov.k(sigma.cc, e.rr, model, delta))
         
     } else if (interval.algebra == "vector space" && restriction == "centre-uncorrelated") {
         result <- .spca.projection.case(
             result,
-            conventional.matrix = cov.k(sigma.cc, mu.r, sigma.rr, delta, model),
+            conventional.matrix = cov.k(sigma.cc, e.rr, model, delta),
             orthogonality.matrix = sigma.cc
         )
         
