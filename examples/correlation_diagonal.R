@@ -20,4 +20,5 @@ b <- 0.5
 C <- cbind(C, a*C[,1]+b, a*C[,2]+b+rnorm(N, sd = 0.1))
 R <- cbind(R, a*R[,1]+b, a*R[,2]+b+rnorm(N, sd = 0.1))
 
+# This should issue two warnings, about pairs of variables (1, 6) and (2, 7).
 result <- spca("vector space", "centre-uncorrelated", "diagonal", 0.5, FALSE, C, R)
