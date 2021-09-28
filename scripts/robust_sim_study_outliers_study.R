@@ -4,7 +4,7 @@
 
 rm(list = ls())
 source("./utils.R")
-load("./scripts/robust_sim_study_crazy_means_eps_1_2_5.RData")
+load("./scripts/robust_sim_study_data/robust_sim_study_crazy_means_eps_1_2_5.RData")
 
 Eps <- length(values[[1]])
 

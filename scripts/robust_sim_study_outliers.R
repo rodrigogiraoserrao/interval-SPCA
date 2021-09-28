@@ -1,5 +1,4 @@
 # Simulation study for ROBUST SPCA
-# Shifts means of the distribution of the centres.
 
 source("./utils.R")
 source("./sym.R")
@@ -10,8 +9,12 @@ set.seed(73)
 
 # Generate N data points
 N <- 100
+# Number of repetitions
 M <- 500
+# Size of the interval-valued vector variables.
 P <- 4
+# Contamination levels to consider
+EPSILONS <- c(5, 10, 20)
 
 RESTRICTION <- "orthogonal"
 
@@ -38,7 +41,7 @@ contaminated.sd.r <- sd.r
 #contaminated.mu.r <- 10*contaminated.mu.r
 
 # Iterate over contamination levels
-result <- sapply(c(5, 10, 20), function(epsilon) {
+result <- sapply(EPSILONS, function(epsilon) {
     print(paste0("epsilon = ", epsilon))
     result <- sapply(c("extended", "moore"), function(algebra) {
         print(algebra)
