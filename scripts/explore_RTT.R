@@ -31,7 +31,7 @@ basic.plot <- function(data, annotations) {
 
 load("data/dataRTT_all.RData")
 
-base.data <- data.T1.all.noNA
+base.data <- data.T3.all.noNA
 sorted.probes <- sort(probes)
 
 vdata <- rtt.to.vertical.symbolic(base.data) %>%
@@ -92,6 +92,18 @@ vdata %>% filter(C + R < 800) %>% filter(probe %in% c("Amsterdam","VdM")) %>% fi
     basic.plot(annotations %>% filter(xmin > data$timestamp[start_at])) +
     facet_grid(rows = vars(probe), scales = "free") +
     labs(fill = "Relay")
+
+
+# Small exploratory plot, multiple probes in a single plot
+
+start_at <- which.max(6 == lubridate::day(data$timestamp)) # Plot from 6th of June forward.
+shadow.attacks(
+    vdata %>% filter(C + R < 800) %>% filter(probe %in% c("Amsterdam","VdM")) %>% filter(timestamp >= data$timestamp[start_at]) %>%
+        ggplot(aes(x = timestamp, ymin = C-R, ymax = C+R, color = probe)) +
+        scale_x_datetime() +
+        labs(x = "date", fill = "Probe") +
+        geom_ribbon(), annotations %>% filter(xmin > data$timestamp[start_at])
+) + labs(fill = "Relay")
 
 
 # Exploratory plot (cf. Subtil) with heuristic ----
