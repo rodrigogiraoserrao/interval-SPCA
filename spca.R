@@ -7,13 +7,41 @@
 source("./utils.R")
 source("./sym.R")
 
-# Applies SPCA to the data given.
-# Data can be a combination of the raw interval-valued observations and estimations of their variances/covariances.
-# C and R are matrices where columns encode variables and rows encode observations.
-# sigma.cc and sigma.rr are pxp square matrices where p=ncol(C)=ncol(R) (if C/R are present).
-# mu.c and mu.r are px1 column vectors where p=ncol(C)=ncol(R) (if C/R are present).
-# Using sigma.xx and mu.xx takes precedence over estimating parameters directly from the data in C or R.
-# k, interval.algebra and restriction configure the SPCA setting.
+#' Symbolic Principal Component Analysis for interval-valued data.
+#'
+#'Symbolic Principal Component Analysis for interval-valued data that has no intermediate conventional steps.
+#'The symbolic principal components can be computed from population samples or from the estimated expected value
+#'and covariance of both the centres and ranges.
+#'When estimations are passed in as parameters, the function will not attempt to make the estimations itself based on data.
+#'
+#' @param interval.algebra The algebra to use when computing the linear combinations of intervals.
+#' @param restriction The type of restriction enforced on pairs of symbolic principal components when solving the maximisation problems.
+#' @param model Whether the symbolic covariance matrix uses the full matrix of the second moments of the ranges of the intervals, or just the diagonal part.
+#' @param delta The non-negative factor that is multiplied with the matrix of the second moments of the ranges when computing the symbolic covariance matrix.
+#' @param normalise Whether to normalise the input data before computing the principal components or not.
+#' @param C The data matrix with the population centres of the intervals. Each row represents an observation and columns represent variables.
+#' @param R The data matrix with the population ranges of the intervals. Each row represents an observation and columns represent variables.
+#' @param mu.c The column vector with the estimated expected value of the centres of the intervals.
+#' @param sigma.cc The matrix with the estimated covariance of the centres.
+#' @param mu.r The column vector with the estimated expected value of the ranges of the intervals.
+#' @param sigma.rr The matrix with the estimated covariance of the ranges.
+#' 
+#' @return \code{spca} returns a list containing the estimated symbolic principal components and corresponding eigenvalues, together with information about the parameters used for reference:
+#' \item{vectors}{A matrix with the symbolic principal components as columns.}
+#' \item{values}{A vector with the corresponding eigenvalues.}
+#' \item{sigma.cc}{The estimated symbolic covariance matrix of the centres.}
+#' \item{e.rr}{The estimated matrix of the second moments of the ranges.}
+#' \item{score.C}{A function that projects population centres along the principal components.}
+#' \item{score.R}{A function that projects population ranges along the principal components.}
+#' \item{score}{A function that projects centres and ranges along the principal components.}
+#' \item{restriction}{The restriction parameter used.}
+#' \item{model}{The model parameter used.}
+#' \item{delta}{The value of delta used.}
+#' \item{normalise}{Whether there was normalisation before estimating the symbolic principal components.}
+#' 
+#' @references Rodrigo Girão Serrão, M. Rosário Oliveira, and Lina Oliveira (20XX), Theoretical Derivation of Interval Principal Component Analysis
+#'@seealso \code{\link{cov.k}}, \code{\link{var.k}}, \code{\link{estimate.cov.k}}.
+#' @export
 spca <- function(
     interval.algebra = c("extended", "moore", "vector space"),
     restriction = c("orthogonal", "centre-uncorrelated"),

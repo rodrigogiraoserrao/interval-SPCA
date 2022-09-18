@@ -10,34 +10,20 @@
 # We need some of the symbolic utility functions.
 source("./utils.R")
 
-# Define some useful delta constants.
-DELTAS <- c(0, 0.25, 1/12, 0.25, 1/12, 0.125, 1/24, 1/36 - dnorm(3)/(6*(2*dnorm(3)-1)))
 
-# Checks if this integer k makes sense as the index for a symbolic model.
-.is.legal.k <- function(k) {
-    if (!as.integer(k) == k) stop("k should be an integer.")
-    if (k < 0 || k > length(DELTAS)) stop(paste("k should be between 1 and", k))
-}
-
-# Checks if a given index k corresponds to a full symbolic model.
-is.full.k <- function(k) {
-    .is.legal.k(k)
-    k %in% c(1, 2, 3)
-}
-
-# Checks if a given index k corresponds to a diagonal symbolic model.
-is.diagonal.k <- function(k) {
-    .is.legal.k(k)
-    k %in% c(4, 5, 6, 7, 8)
-}
-
-# Retrieve the \delta_k constant relative to a symbolic model.
-delta.k <- function(k) {
-    .is.legal.k(k)
-    DELTAS[k]
-}
-
-# Computes the symbolic variance of a vector of intervals.
+#' Symbolic variance of a vector of intervals.
+#'
+#'Estimates the symbolic variance of interval-valued random variables based on centre and range samples.
+#'
+#' @param C The data matrix with the population centres of the intervals. Each row represents an observation and columns represent variables.
+#' @param R The data matrix with the population ranges of the intervals. Each row represents an observation and columns represent variables.
+#' @param delta The non-negative factor that is multiplied with the matrix of the second moments of the ranges when computing the symbolic covariance matrix.
+#' 
+#' @return \code{var.k} Returns a vector with the estimated symbolic variances.
+#' 
+#' @references Rodrigo Girão Serrão, M. Rosário Oliveira, and Lina Oliveira (20XX), Theoretical Derivation of Interval Principal Component Analysis
+#'@seealso \code{\link{spca}}, \code{\link{cov.k}}, \code{\link{estimate.cov.k}}.
+#' @export
 var.k <- function(C, R, delta) {
     if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
     if (!is.numeric(delta)) stop("Delta should be a non-negative real number.")
@@ -46,7 +32,20 @@ var.k <- function(C, R, delta) {
     return(diag(var(C)) + delta*diag(t(R)%*%R)/nrow(R))
 }
 
-# Computes the symbolic covariance matrix.
+#' Symbolic covariance matrix.
+#'
+#'Computes the symbolic covariance of interval-valued random variables based on the covariance of the centres and the second moments of the ranges.
+#'
+#' @param sigma.cc The covariance matrix of the centres.
+#' @param e.rr The second moments matrix of the ranges.
+#' @param model Whether the symbolic covariance matrix uses the full matrix of the second moments of the ranges of the intervals, or just the diagonal part.
+#' @param delta The non-negative factor that is multiplied with the matrix of the second moments of the ranges when computing the symbolic covariance matrix.
+#' 
+#' @return \code{spca} Returns a matrix with the estimated symbolic covariance.
+#' 
+#' @references Rodrigo Girão Serrão, M. Rosário Oliveira, and Lina Oliveira (20XX), Theoretical Derivation of Interval Principal Component Analysis
+#'@seealso \code{\link{spca}}, \code{\link{var.k}}, \code{\link{estimate.cov.k}}.
+#' @export
 cov.k <- function(sigma.cc, e.rr, model = c("diagonal", "full"), delta) {
     model <- match.arg(model)
     if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
@@ -57,7 +56,21 @@ cov.k <- function(sigma.cc, e.rr, model = c("diagonal", "full"), delta) {
     else return(sigma.cc + delta*diag.matrix(e.rr))
 }
 
-# Estimates the symbolic covariance matrix from some interval valued observations.
+
+#' Symbolic covariance matrix estimation.
+#'
+#'Estimates the symbolic covariance of interval-valued random variables based on centre and range samples.
+#'
+#' @param C The data matrix with the population centres of the intervals. Each row represents an observation and columns represent variables.
+#' @param R The data matrix with the population ranges of the intervals. Each row represents an observation and columns represent variables.
+#' @param model Whether the symbolic covariance matrix uses the full matrix of the second moments of the ranges of the intervals, or just the diagonal part.
+#' @param delta The non-negative factor that is multiplied with the matrix of the second moments of the ranges when computing the symbolic covariance matrix.
+#' 
+#' @return \code{spca} Returns a matrix with the estimated symbolic covariance.
+#' 
+#' @references Rodrigo Girão Serrão, M. Rosário Oliveira, and Lina Oliveira (20XX), Theoretical Derivation of Interval Principal Component Analysis
+#'@seealso \code{\link{spca}}, \code{\link{cov.k}}, \code{\link{var.k}}.
+#' @export
 estimate.cov.k <- function(C, R, model = c("diagonal", "full"), delta) {
     model <- match.arg(model)
     if (!is.atomic(delta) || length(delta) > 1) stop("Delta should be a single number.")
